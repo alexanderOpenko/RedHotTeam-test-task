@@ -1,5 +1,3 @@
-
-
 {% assign block_settings = block.settings %}
 
 {%- if block_settings.zoom -%}
@@ -11,33 +9,23 @@
 
 {%- liquid
   assign selected_product = closest.product
-  assign selected_variant_media = selected_product.selected_or_first_available_variant.featured_media
+  assign selected_or_first_available_variant = selected_product.selected_or_first_available_variant
+  assign selected_variant_media = blank
+
+  if selected_or_first_available_variant.featured_image != 'null'
+    assign selected_variant_media = selected_or_first_available_variant.featured_media
+  endif
+
+  assign variant_extra_images = '' | split: ','
+
+  if selected_or_first_available_variant.metafields.accentuate.images.size > 0
+    assign variant_extra_images = variant_extra_images | concat: selected_or_first_available_variant.metafields.accentuate.images
+  endif
+
   assign first_3d_model = selected_product.media | where: 'media_type', 'model' | first
 
   if block_settings.hide_variants
     assign variant_images = selected_product.images | where: 'attached_to_variant?', true | map: 'src'
-  endif
-
-  if block_settings.slideshow_controls_style == 'thumbnails'
-    assign controls_on_media = false
-  else
-    assign controls_on_media = true
-  endif
-
-  assign render_slideshow_controls = false
-
-  if block_settings.media_presentation == 'carousel' or block_settings.slideshow_controls_style == block_settings.slideshow_mobile_controls_style
-    assign render_slideshow_controls = true
-  endif
-
-  assign render_mobile_slideshow_controls = false
-
-  if block_settings.slideshow_controls_style != block_settings.slideshow_mobile_controls_style
-    assign slideshow_controls_class = 'mobile:hidden'
-
-    if block_settings.slideshow_mobile_controls_style != 'hint'
-      assign render_mobile_slideshow_controls = true
-    endif
   endif
 
   assign slideshow_controls_style = block_settings.slideshow_controls_style
@@ -46,9 +34,15 @@
     assign slideshow_controls_style = 'counter'
   endif
 
+  assign total_images_count = selected_product.media.size
+
+  if variant_extra_images
+    assign total_images_count = variant_extra_images.size
+  endif
+
   assign render_slideshow_arrows = false
 
-  if selected_product.media.size <= 1
+  if total_images_count <= 1
     assign slideshow_class = 'product-media-gallery__slideshow--single-media slideshow--single-media'
   else
     assign slideshow_class = ''
@@ -83,15 +77,22 @@
 
 {%- liquid
   assign sorted_media = '' | split: ','
-  if selected_variant_media
-    assign sorted_media = sorted_media | concat: selected_product.media | where: 'id', selected_variant_media.id
+
+  if selected_variant_media or variant_extra_images.size > 0
+    if selected_variant_media
+      assign sorted_media = sorted_media | concat: selected_product.media | where: 'id', selected_variant_media.id
+    endif
+
+    if selected_or_first_available_variant.metafields.accentuate.images
+      assign sorted_media = sorted_media | concat: variant_extra_images
+    endif
 
     for media in selected_product.media
       if block_settings.hide_variants and variant_images contains media.src and sorted_media.size > 0
         continue
       endif
 
-      if media.id != selected_variant_media.id
+      if media.id != selected_variant_media.id and variant_extra_images.size <= 0
         assign found_media = selected_product.media | where: 'id', media.id
         assign sorted_media = sorted_media | concat: found_media
       endif
@@ -99,6 +100,7 @@
   else
     assign sorted_media = selected_product.media
   endif
+
   assign has_image_drop = sorted_media | has: 'media_type', 'image'
 
   # Determine if we're in single column mode (carousel or grid with one column)
@@ -304,10 +306,10 @@
         -%}
         {% if block_settings.aspect_ratio != 'adapt' and block_settings.constrain_to_viewport %}
           <div class="product-media-constraint-wrapper">
-            {%- render 'product-media', media: media, sizes: media_sizes, is_main_product_media: forloop.first -%}
+            {%- render 'product-media', class: "swiper-slide", media: media, sizes: media_sizes, is_main_product_media: forloop.first -%}
           </div>
         {% else %}
-          {%- render 'product-media', media: media, sizes: media_sizes, is_main_product_media: forloop.first -%}
+          {%- render 'product-media', class: "swiper-slide", media: media, sizes: media_sizes, is_main_product_media: forloop.first -%}
         {% endif %}
       {% endcapture %}
       {% capture class %}
@@ -324,7 +326,7 @@
         {%- capture attributes -%}on:click="#zoom-dialog-{{ block.id }}/open/{{ forloop.index0 }}"{% if settings.transition_to_main_product and forloop.first %} data-view-transition-type="product-image-transition"{% endif %}{% endcapture -%}
       {% endif %}
 
-      {% render 'slideshow-slide',
+      {% render 'custom-slideshow-slide',
         index: forloop.index0,
         children: children,
         class: class,
@@ -335,47 +337,29 @@
     {% endfor %}
   {% endcapture %}
 
-  {% if sorted_media.size > 1 %}
-    {% capture controls %}
-      {% if render_slideshow_controls %}
-        {%- render 'slideshow-controls',
-          class: slideshow_controls_class,
-          style: slideshow_controls_style,
-          item_count: sorted_media.size,
-          thumbnails: sorted_media,
-          controls_on_media: controls_on_media,
-          pagination_position: pagination_position,
-          aspect_ratio: block_settings.aspect_ratio
-        -%}
-      {% endif %}
-
-      {% if render_mobile_slideshow_controls %}
-        {%- render 'slideshow-controls',
-          class: 'desktop:hidden media-gallery__mobile-controls',
-          style: block_settings.slideshow_mobile_controls_style,
-          item_count: sorted_media.size,
-          controls_on_media: true,
-          pagination_position: 'center',
-        -%}
-      {% endif %}
-    {% endcapture %}
-  {% endif %}
-
   {% if render_slideshow_arrows %}
     {% capture slideshow_arrows %}
-      {% render 'slideshow-arrows', class: 'mobile:hidden', icon_style: block_settings.icons_style, icon_shape: settings.icons_shape %}
+      {% render 'slideshow-arrows', icon_style: block_settings.icons_style, mobile_icon_style: block_settings.mobile_icons_style, icon_shape: settings.icons_shape %}
     {% endcapture %}
   {% endif %}
 
-  {% render 'slideshow',
-    ref: 'slideshow',
+  {% if block_settings.media_presentation == 'grid' %}
+    {% assign slideshow_class = slideshow_class | append: " desktop:hidden" %}
+  {% endif %}
+
+  {% render 'custom-slideshow',
     class: slideshow_class,
     slides: slides,
-    slide_count: sorted_media.size,
     slideshow_arrows: slideshow_arrows,
-    arrows_position: icons_position,
-    controls: controls
+    pagination: block_settings.slideshow_controls_style,
+    show_mobile_pagination: block_settings.show_mobile_pagination,
+    desktop_slides_count: block_settings.desktop_slides_count,
+    tablet_slides_count: block_settings.tablet_slides_count,
+    mobile_slides_count: block_settings.mobile_slides_count,
+    space_between_slides: block_settings.space_between_slides
   %}
+
+  {% comment %} 'slideshow' {% endcomment %}
 
   {% if block_settings.media_presentation == 'grid' %}
     <ul
@@ -391,7 +375,7 @@
             data-view-transition-type="product-image-transition"
           {% endif %}
         >
-          {%- if block_settings.zoom and media.media_type == 'image' -%}
+          {%- if block_settings.zoom and media.media_type == 'image' or media contains 'http' -%}
             <button
               type="button"
               class="button button-unstyled product-media-container__zoom-button"
@@ -463,16 +447,33 @@
                     aria-selected="true"
                   {% endif %}
                 >
-                  {{
-                    media.preview_image
-                    | image_url: width: 1024
-                    | image_tag:
-                      loading: 'lazy',
-                      sizes: 'auto, 110, (min-width: 750px) 160',
-                      widths: '240, 352, 832, 1200',
-                      alt: media.alt
-                    | escape
-                  }}
+                  {% if media.src %}
+                    {{
+                      media.preview_image
+                      | image_url: width: 1024
+                      | image_tag:
+                        loading: 'lazy',
+                        sizes: 'auto, 110, (min-width: 750px) 160',
+                        widths: '240, 352, 832, 1200',
+                        alt: media.alt
+                      | escape
+                    }}
+                  {% elsif media contains 'http' %}
+                    <img
+                      src="{{ media | replace: '\\/', '/' }}"
+                      loading="lazy"
+                      sizes="auto, 110, (min-width: 750px) 160"
+                      srcset="
+                        {{ media | replace: '\\/', '/' }}?width=240 240w,
+                        {{ media | replace: '\\/', '/' }}?width=352 352w,
+                        {{ media | replace: '\\/', '/' }}?width=832 832w,
+                        {{ media | replace: '\\/', '/' }}?width=1200 1200w
+                      "
+                      width=""
+                      height=""
+                      alt=""
+                    >
+                  {% endif %}
                 </button>
               {%- endfor -%}
             {% endif %}
@@ -752,10 +753,50 @@
       "content": "t:content.carousel"
     },
     {
+      "type": "range",
+      "id": "desktop_slides_count",
+      "label": "Slides per view on desktop",
+      "default": 3,
+      "min": 1,
+      "max": 6,
+      "step": 1
+    },
+    {
+      "type": "range",
+      "id": "tablet_slides_count",
+      "label": "Slides per view on tablet",
+      "default": 2,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "type": "range",
+      "id": "mobile_slides_count",
+      "label": "Slides per view on mobile",
+      "default": 1,
+      "min": 1,
+      "max": 3,
+      "step": 1
+    },
+     {
+      "type": "range",
+      "id": "space_between_slides",
+      "label": "Space between slides (px)",
+      "min": 0,
+      "max": 40,
+      "step": 10,
+      "default": 20
+    },
+    {
       "type": "select",
       "id": "icons_style",
       "label": "t:settings.icons",
       "options": [
+        {
+          "value": "none",
+          "label": "None"
+        },
         {
           "value": "arrow",
           "label": "t:options.arrows"
@@ -773,7 +814,36 @@
           "label": "t:options.large_chevrons"
         }
       ],
-      "default": "arrow",
+      "default": "none",
+      "visible_if": "{{ block.settings.media_presentation == 'carousel' }}"
+    },
+    {
+      "type": "select",
+      "id": "mobile_icons_style",
+      "label": "Mobile icons",
+      "options": [
+        {
+          "value": "none",
+          "label": "None"
+        },
+        {
+          "value": "arrow",
+          "label": "t:options.arrows"
+        },
+        {
+          "value": "chevron",
+          "label": "t:options.chevrons"
+        },
+        {
+          "value": "arrows_large",
+          "label": "t:options.large_arrows"
+        },
+        {
+          "value": "chevron_large",
+          "label": "t:options.large_chevrons"
+        }
+      ],
+      "default": "none",
       "visible_if": "{{ block.settings.media_presentation == 'carousel' }}"
     },
     {
@@ -782,38 +852,26 @@
       "label": "t:settings.pagination",
       "options": [
         {
-          "value": "dots",
+          "value": "none",
+          "label": "None"
+        },
+        {
+          "value": "bullets",
           "label": "t:options.dots"
         },
         {
-          "value": "counter",
+          "value": "fraction",
           "label": "t:options.counter"
-        },
-        {
-          "value": "thumbnails",
-          "label": "t:options.thumbnails"
         }
       ],
+      "default": "bullets",
       "visible_if": "{{ block.settings.media_presentation == 'carousel' }}"
     },
     {
-      "type": "select",
-      "id": "slideshow_mobile_controls_style",
-      "label": "t:settings.mobile_pagination",
-      "options": [
-        {
-          "value": "dots",
-          "label": "t:options.dots"
-        },
-        {
-          "value": "counter",
-          "label": "t:options.counter"
-        },
-        {
-          "value": "hint",
-          "label": "t:options.hint"
-        }
-      ]
+      "type": "checkbox",
+      "id": "show_mobile_pagination",
+      "label": "Show mobile pagination",
+      "default": true
     },
     {
       "type": "header",

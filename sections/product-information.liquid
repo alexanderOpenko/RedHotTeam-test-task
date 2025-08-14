@@ -7,8 +7,16 @@
     assign render_order = 'product-details,media'
   endif
 
+  comment
+    Перевірка для відображення блока media
+    якщо в продукта немає media але є картинки варіанту в полі ACF 
+  endcomment
+
+  assign selected_or_first_available_variant = closest.product.selected_or_first_available_variant
+  assign variant_extra_images = selected_or_first_available_variant.metafields.accentuate.images
+
   assign product_has_media = true
-  if closest.product.media.size == 0
+  if closest.product.media.size == 0 and variant_extra_images.size == 0
     assign product_has_media = false
   endif
 

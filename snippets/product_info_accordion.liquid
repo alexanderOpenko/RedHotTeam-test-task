@@ -1,0 +1,118 @@
+{%- doc -%}
+  @param {boolean} allow_multiple_open
+{%- enddoc -%}
+
+{% assign titles = closest.product.metafields.accentuate.title %}
+{% assign descriptions = closest.product.metafields.accentuate.description %}
+
+{% assign max_length = titles.size %}
+{% if descriptions.size > max_length %}
+  {% assign max_length = descriptions.size %}
+{% endif %}
+
+{% if max_length > 0 %}
+  <div class="product-accordion" data-multiple="{{ allow_multiple_open }}">
+    {% for title in titles %}
+      {% assign index = forloop.index0 %}
+      {% assign desc = descriptions[index] | default: '' %}
+
+      {% if title != '' and desc != '' %}
+        <div class="accordion-item">
+          {% if title != '' %}
+            <button class="accordion-header">{{ title }}</button>
+          {% endif %}
+          {% if desc != '' %}
+            <div class="accordion-content">
+              {{ desc }}
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endif %}
+
+<style>
+.product-accordion {
+  border-top: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+  max-width: 600px;
+  width: 100%;
+  margin: 0 auto;
+  font-family: Arial, sans-serif;
+}
+
+.product-accordion .accordion-item {
+  border-bottom: 1px solid #ddd;
+}
+
+.product-accordion .accordion-header {
+  cursor: pointer;
+  padding: 15px 20px;
+  background: #fff;
+  font-weight: bold;
+  font-size: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: none;
+  width: 100%;
+  text-align: left;
+  outline: none;
+}
+
+.product-accordion .accordion-header::after {
+  content: '\25BC'; 
+  font-size: 12px;
+  transition: transform 0.3s ease;
+}
+
+.product-accordion .accordion-header.active::after {
+  transform: rotate(180deg); 
+}
+
+.product-accordion .accordion-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  padding: 0 20px;
+  background: #fafafa;
+  font-size: 14px;
+  line-height: 1.5;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const accordion = document.querySelector('.product-accordion');
+  if (!accordion) { 
+    return
+  };
+
+  const allowMultiple = accordion.dataset.multiple === 'true';
+  const headers = accordion.querySelectorAll('.accordion-header');
+
+  headers.forEach(header => {
+    header.addEventListener('click', () => {
+      const content = header.nextElementSibling;
+
+      if (!allowMultiple) {
+        headers.forEach(h => {
+          if (h !== header) {
+            h.classList.remove('active');
+            h.nextElementSibling.style.maxHeight = null;
+          }
+        });
+      }
+
+      header.classList.toggle('active');
+
+      if (header.classList.contains('active')) {
+        content.style.maxHeight = content.scrollHeight + "px";
+      } else {
+        content.style.maxHeight = null;
+      }
+    });
+  });
+});
+</script>

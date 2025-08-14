@@ -1,0 +1,43 @@
+{%- doc -%}
+  @param {object[]} slides - the slides of the slideshow
+  @param {string} [class] - HTML class attribute of the slideshow component
+  @param {string} [slideshow_arrows] - a custom slideshow-arrows component to render instead of the default
+  @param {boolean} [header] - The title of the slideshow
+  @param {string} pagination
+  @param {boolean} show_mobile_pagination
+  @param {number} desktop_slides_count
+  @param {number} tablet_slides_count
+  @param {number} mobile_slides_count
+  @param {number} space_between_slides
+  @example
+  {% render 'slideshow', slides: slides, slide_count: collection.products.size, ref: 'mobileSlideshow' %}
+{%- enddoc -%}
+
+{%- liquid
+  if class != blank
+    assign class = class | strip 
+  endif
+
+  if header != blank
+    echo header
+  endif 
+-%}
+
+<custom-swiper 
+  pagination-type="{{ pagination }}" 
+  mobile-pagination="{{ show_mobile_pagination }}"
+  slides-desktop="{{ desktop_slides_count }}"
+  slides-tablet="{{ tablet_slides_count }}"
+  slides-mobile="{{ mobile_slides_count }}"
+  space-between="{{ space_between_slides }}"
+  {% if class != blank %}
+    class="{{  class }}"
+  {% endif %}
+>
+  <template data-slides>
+    {{ slides }}
+  </template>
+  <template data-arrows>
+    {{ slideshow_arrows }}
+  </template>
+</custom-swiper>

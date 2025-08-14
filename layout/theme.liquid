@@ -6,6 +6,14 @@
   <head>
     {%- render 'stylesheets' -%}
 
+    {{ 'swiper-bundle.min.css' | asset_url | stylesheet_tag }}
+    {{ 'swiper-bundle.min.js' | asset_url | script_tag  }}
+
+    <script
+      src="{{ 'swiper-slider.js' | asset_url }}"
+      defer
+    ></script>
+
     {%- if settings.favicon != blank -%}
       <link
         rel="icon"

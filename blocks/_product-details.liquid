@@ -25,6 +25,8 @@
       </a>
     </div>
     {% content_for 'blocks' %}
+
+    {% render 'product_info_accordion', allow_multiple_open: block_settings.allow_multiple_open %}
   {% endcapture %}
 
   {% render 'group', children: children, settings: block_settings, shopify_attributes: block.shopify_attributes %}
@@ -256,6 +258,12 @@
     {
       "type": "header",
       "content": "t:content.appearance"
+    },
+    {
+      "type": "checkbox",
+      "id": "allow_multiple_open",
+      "label": "Allow multiple accordion items to be open at the same time",
+      "default": false
     },
     {
       "type": "checkbox",
